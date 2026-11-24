@@ -37,14 +37,14 @@ public class MyRobotController : MonoBehaviour
 
     void HandleInput()
     {
-        if (Input.GetKeyDown(KeyCode.Q))
+        if (Input.GetKey(KeyCode.Q))
         {
-            RotateJoint(-rotationStep);
+            RotateJoint(-rotationStep * Time.deltaTime);
         }
 
-        if (Input.GetKeyDown(KeyCode.E))
+        if (Input.GetKey(KeyCode.E))
         {
-            RotateJoint(rotationStep);
+            RotateJoint(rotationStep * Time.deltaTime);
         }
 
         if (Input.GetKeyDown(KeyCode.Alpha1))
