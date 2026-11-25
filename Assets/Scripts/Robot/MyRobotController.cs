@@ -1,3 +1,4 @@
+
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -11,22 +12,31 @@ public class MyRobotController : MonoBehaviour
 
     [Header("Movement")]
     public float rotationStep = 10f;
-    public Vector3 rotationAxis = Vector3.forward;
+    public Vector3 rotationAxisX = Vector3.right;
+    public Vector3 rotationAxisY = Vector3.up;
 
     private int activeJoint = 0;
 
-    private float[] jointAngles = { 0f, 0f, 0f };
+    private float[] minAnglesX = { -90f, -120f, -135f };
+    private float[] maxAnglesX = { 90f, 120f, 135f };
 
-    private float[] minAngles = { -90f, -120f, -135f };
-    private float[] maxAngles = { 90f, 120f, 135f };
+    private float[] minAnglesY = { -90f, -120f, -135f };
+    private float[] maxAnglesY = { 90f, 120f, 135f };
 
-    private float[] targetAngles = { 0f, 0f, 0f };
+    // Angulos X
+    private float[] targetAnglesX = { 0f, 0f, 0f };
+    private float[] startAnglesX = { 0f, 0f, 0f };
+    private float[] currentAnglesX = { 0f, 0f, 0f };
+
+    // Angulos Y
+    private float[] targetAnglesY = { 0f, 0f, 0f };
+    private float[] startAnglesY = { 0f, 0f, 0f };
+    private float[] currentAnglesY = { 0f, 0f, 0f };
 
     private float interpolationSpeed = 3f;
-    private float[] interpolationProgress = { 1f, 1f, 1f };
 
-    private float[] startAngles = { 0f, 0f, 0f };
-    private float[] currentAngles = { 0f, 0f, 0f };
+    private float[] interpolationProgressX = { 1f, 1f, 1f };
+    private float[] interpolationProgressY = { 1f, 1f, 1f };
 
     private void Update()
     {
@@ -37,16 +47,21 @@ public class MyRobotController : MonoBehaviour
 
     void HandleInput()
     {
+        // ROTACION X
         if (Input.GetKey(KeyCode.Q))
-        {
-            RotateJoint(-rotationStep * Time.deltaTime);
-        }
+            RotateJoint(-rotationStep * Time.deltaTime, true);
 
-        if (Input.GetKey(KeyCode.E))
-        {
-            RotateJoint(rotationStep * Time.deltaTime);
-        }
+        else if (Input.GetKey(KeyCode.E))
+            RotateJoint(rotationStep * Time.deltaTime, true);
 
+        // ROTACION Y
+        if (Input.GetKey(KeyCode.R))
+            RotateJoint(-rotationStep * Time.deltaTime, false);
+
+        else if (Input.GetKey(KeyCode.F))
+            RotateJoint(rotationStep * Time.deltaTime, false);
+
+        // Seleccion de articulacion
         if (Input.GetKeyDown(KeyCode.Alpha1))
             activeJoint = 0;
 
@@ -57,71 +72,146 @@ public class MyRobotController : MonoBehaviour
             activeJoint = 2;
     }
 
-    void RotateJoint(float angle)
+    void RotateJoint(float angle, bool axisX)
     {
-        float newAngle = targetAngles[activeJoint] + angle;
+        if (activeJoint >= joints.Count - 1)
+            return;
 
-        newAngle = Mathf.Clamp(
-            newAngle,
-            minAngles[activeJoint],
-            maxAngles[activeJoint]
+        if (axisX)
+        {
+            float newAngle = targetAnglesX[activeJoint] + angle;
+
+            newAngle = Mathf.Clamp(
+                newAngle,
+                minAnglesX[activeJoint],
+                maxAnglesX[activeJoint]
             );
 
-        startAngles[activeJoint] = currentAngles[activeJoint];
-        targetAngles[activeJoint] = newAngle;
-        interpolationProgress[activeJoint] = 0f;
+            startAnglesX[activeJoint] = currentAnglesX[activeJoint];
+            targetAnglesX[activeJoint] = newAngle;
+
+            interpolationProgressX[activeJoint] = 0f;
+        }
+        else
+        {
+            float newAngle = targetAnglesY[activeJoint] + angle;
+
+            newAngle = Mathf.Clamp(
+                newAngle,
+                minAnglesY[activeJoint],
+                maxAnglesY[activeJoint]
+            );
+
+            startAnglesY[activeJoint] = currentAnglesY[activeJoint];
+            targetAnglesY[activeJoint] = newAngle;
+
+            interpolationProgressY[activeJoint] = 0f;
+        }
     }
 
     void UpdateJointRotation()
     {
         for (int i = 0; i < joints.Count - 1; i++)
         {
-            if (interpolationProgress[i] >= 1f)
-                continue;
+            // =========================
+            // ROTACION X
+            // =========================
 
-            interpolationProgress[i] += Time.deltaTime * interpolationSpeed;
+            if (interpolationProgressX[i] < 1f)
+            {
+                interpolationProgressX[i] +=
+                    Time.deltaTime * interpolationSpeed;
 
-            float t = Mathf.Clamp01(interpolationProgress[i]);
+                float t = Mathf.Clamp01(interpolationProgressX[i]);
 
-            // Rotación inicial
-            MyQuaternion startRotation = new MyQuaternion(
-                rotationAxis.normalized,
-                startAngles[i] * Mathf.Deg2Rad
-            );
+                MyQuaternion startRotationX = new MyQuaternion(
+                    rotationAxisX.normalized,
+                    startAnglesX[i] * Mathf.Deg2Rad
+                );
 
-            // Rotación final
-            MyQuaternion targetRotation = new MyQuaternion(
-                rotationAxis.normalized,
-                targetAngles[i] * Mathf.Deg2Rad
-            );
+                MyQuaternion targetRotationX = new MyQuaternion(
+                    rotationAxisX.normalized,
+                    targetAnglesX[i] * Mathf.Deg2Rad
+                );
 
-            // Interpolación entre ambas rotaciones
-            MyQuaternion interpolatedRotation = Interpolation.SLERP(
-                startRotation,
-                targetRotation,
-                t
-            );
+                MyQuaternion interpolatedRotationX = Interpolation.SLERP(
+                    startRotationX,
+                    targetRotationX,
+                    t
+                );
 
-            // Recuperar el ángulo interpolado
-            Vector3 axis = rotationAxis.normalized;
+                Vector3 vectorPartX = new Vector3(
+                    interpolatedRotationX.x,
+                    interpolatedRotationX.y,
+                    interpolatedRotationX.z
+                );
 
-            Vector3 vectorPart = new Vector3(
-                interpolatedRotation.x,
-                interpolatedRotation.y,
-                interpolatedRotation.z
-            );
+                float angleX = 2f * Mathf.Atan2(
+                    Vector3.Dot(vectorPartX, rotationAxisX.normalized),
+                    interpolatedRotationX.w
+                ) * Mathf.Rad2Deg;
 
-            float angle = 2f * Mathf.Atan2(
-                Vector3.Dot(vectorPart, axis),
-                interpolatedRotation.w
-            ) * Mathf.Rad2Deg;
+                float appliedAngleX = angleX - currentAnglesX[i];
 
-            // Aplicar únicamente el cambio de ángulo
-            float appliedAngle = angle - currentAngles[i];
+                currentAnglesX[i] = angleX;
 
-            currentAngles[i] = angle;
+                FK.ApplyFK(
+                    joints,
+                    rotationAxisX,
+                    appliedAngleX,
+                    i
+                );
+            }
 
-            FK.ApplyFK(joints, rotationAxis, appliedAngle, i);
+            // =========================
+            // ROTACION Y
+            // =========================
+
+            if (interpolationProgressY[i] < 1f)
+            {
+                interpolationProgressY[i] +=
+                    Time.deltaTime * interpolationSpeed;
+
+                float t = Mathf.Clamp01(interpolationProgressY[i]);
+
+                MyQuaternion startRotationY = new MyQuaternion(
+                    rotationAxisY.normalized,
+                    startAnglesY[i] * Mathf.Deg2Rad
+                );
+
+                MyQuaternion targetRotationY = new MyQuaternion(
+                    rotationAxisY.normalized,
+                    targetAnglesY[i] * Mathf.Deg2Rad
+                );
+
+                MyQuaternion interpolatedRotationY = Interpolation.SLERP(
+                    startRotationY,
+                    targetRotationY,
+                    t
+                );
+
+                Vector3 vectorPartY = new Vector3(
+                    interpolatedRotationY.x,
+                    interpolatedRotationY.y,
+                    interpolatedRotationY.z
+                );
+
+                float angleY = 2f * Mathf.Atan2(
+                    Vector3.Dot(vectorPartY, rotationAxisY.normalized),
+                    interpolatedRotationY.w
+                ) * Mathf.Rad2Deg;
+
+                float appliedAngleY = angleY - currentAnglesY[i];
+
+                currentAnglesY[i] = angleY;
+
+                FK.ApplyFK(
+                    joints,
+                    rotationAxisY,
+                    appliedAngleY,
+                    i
+                );
+            }
         }
     }
 
@@ -134,3 +224,4 @@ public class MyRobotController : MonoBehaviour
         }
     }
 }
+
